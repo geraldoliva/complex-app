@@ -1,3 +1,5 @@
+const { ObjectId } = require('mongodb')
+
 const usersCollection = require('../db').db().collection("users")
 const followsCollection = require('../db').db().collection("follows")
 const ObjectID = require('mongodb').ObjectID
@@ -12,7 +14,7 @@ Follow.prototype.cleanUp = function () {
     if (typeof(this.followedUsername) != "string") {this.followedUsername = ""}
 }
 
-Follow.prototype.validate = async function () {
+Follow.prototype.validate = async function (action) {
     // Followed username must exist in database
     let followedAccount = await usersCollection.findOne({username: this.followedUsername})
     if (followedAccount) {
@@ -20,12 +22,24 @@ Follow.prototype.validate = async function () {
     } else {
         this.errors.push("You cannot follow a user that does not exist.")
     }
+
+    let doesFollowAlreadyExist = await followsCollection.findOne({followedId: this.followedId, authorId: new ObjectID(this.authorId)})
+    if (action == "create") {
+        if (doesFollowAlreadyExist) {this.errors.push("You are already following this user")}
+    }
+
+    if (action == "delete") {
+        if (!doesFollowAlreadyExist) {this.errors.push("You cannot stop following stop someone you do not already follow")}
+    }
+
+    // Should not be able to follow yourself
+    if (this.followedId.equals(this.authorId)) {this.errors.push("You cannot follow yourself")}
 }
 
 Follow.prototype.create = function() {
     return new Promise(async (resolve, reject) => {
         this.cleanUp()
-        await this.validate()
+        await this.validate("create")
 
         if (!this.errors.length) {
             await followsCollection.insertOne({followedId: this.followedId, authorId: new ObjectID(this.authorId)})
@@ -35,5 +49,30 @@ Follow.prototype.create = function() {
         }
     })
 }
+
+Follow.prototype.delete = function () {
+    return new Promise(async (resolve, reject) => {
+        this.cleanUp()
+        await this.validate("delete")
+
+        if (!this.errors.length) {
+            await followsCollection.deleteOne({ followedId: this.followedId, authorId: new ObjectID(this.authorId) })
+            resolve()
+        } else {
+            reject(this.errors)
+        }
+    })
+}
+
+Follow.isVisitorFollowing = async function(followedId, visitorId) {
+    let followDoc = await followsCollection.findOne({followedId: followedId, authorId: new ObjectId(visitorId)})
+    if (followDoc) {
+        return true
+    } else {
+        return false
+    }
+}
+
+
 
 module.exports = Follow
