@@ -5,9 +5,12 @@ const flash = require('connect-flash')
 const csrf = require('csurf')
 const markdown = require('marked')
 const sanitizeHTML = require('sanitize-html')
-
 const app = express()
 
+app.use(express.urlencoded({ extended: false }))
+app.use(express.json())
+
+app.use('/api', require('./router-api'))
 
 let sessionOptions = session({
     secret: "JavaScript is sooo cool",
@@ -43,9 +46,6 @@ app.use(function(req, res, next) {
 })
 
 const router = require('./router')
-
-app.use(express.urlencoded({extended: false}))
-app.use(express.json())
 
 app.use(express.static('public'))
 app.set('views', 'views')
