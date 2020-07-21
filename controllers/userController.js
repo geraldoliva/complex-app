@@ -34,7 +34,7 @@ exports.sharedProfileData = async function(req, res, next) {
     
     req.postCount = postCount
     req.followerCount = followerCount
-    req.followingCount = followingCountPromise
+    req.followingCount = followingCount
 
     next()
 }
